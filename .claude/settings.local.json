@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Usuario/OneDrive/�rea de Trabalho/HouseUp CRM/houseup-crm/node_modules/next/dist/**)",
+      "Read(//c/Users/Usuario/OneDrive/�rea de Trabalho/HouseUp CRM/houseup-crm/.next/dev/logs/**)"
+    ]
+  }
+}
