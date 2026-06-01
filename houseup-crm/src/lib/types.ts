@@ -1,3 +1,10 @@
+export interface UserProfile {
+  id: string
+  full_name: string
+  role: UserRole
+  created_at: string
+}
+
 export type Origem = 'instagram_organico' | 'trafego_pago' | 'indicacao'
 export type TipoInteresse = 'so_projeto' | 'so_obra' | 'projeto_e_obra'
 export type EtapaLead =

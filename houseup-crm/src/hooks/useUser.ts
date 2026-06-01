@@ -3,13 +3,9 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
+import type { UserProfile } from '@/lib/types'
 
-export interface UserProfile {
-  id: string
-  full_name: string
-  role: 'socio' | 'gestor_comercial' | 'gestor_trafego'
-  created_at: string
-}
+export type { UserProfile }
 
 interface UseUserResult {
   user: User | null

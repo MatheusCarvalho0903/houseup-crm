@@ -25,6 +25,7 @@ export function LeadsClient() {
 
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [filterEtapa, setFilterEtapa] = useState<EtapaLead | ''>('')
   const [filterOrigem, setFilterOrigem] = useState<Origem | ''>('')
@@ -33,11 +34,25 @@ export function LeadsClient() {
 
   const fetchLeads = async () => {
     const supabase = createClient()
-    const { data } = await supabase
+
+    const { data: { session } } = await supabase.auth.getSession()
+    console.log('Session:', session)
+
+    const { data, error } = await supabase
       .from('leads')
       .select('*, responsavel:users_profiles!responsavel_id(full_name, role)')
       .order('last_activity_at', { ascending: false })
+
+    console.log('Leads query error:', error)
+
+    if (error) {
+      setFetchError(`Erro ao carregar leads: ${error.message}`)
+      setLoading(false)
+      return
+    }
+
     setLeads((data as Lead[]) ?? [])
+    setFetchError(null)
     setLoading(false)
   }
 
@@ -135,6 +150,13 @@ export function LeadsClient() {
           </button>
         )}
       </div>
+
+      {/* Error state */}
+      {fetchError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <p className="text-red-600 text-sm">{fetchError}</p>
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

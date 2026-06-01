@@ -26,6 +26,7 @@ export function KanbanBoard() {
 
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [draggingLead, setDraggingLead] = useState<Lead | null>(null)
   const [perdidoOpen, setPerdidoOpen] = useState(false)
 
@@ -36,11 +37,25 @@ export function KanbanBoard() {
 
   const fetchLeads = async () => {
     const supabase = createClient()
-    const { data } = await supabase
+
+    const { data: { session } } = await supabase.auth.getSession()
+    console.log('Session:', session)
+
+    const { data, error } = await supabase
       .from('leads')
       .select('*, responsavel:users_profiles!responsavel_id(full_name, role)')
       .order('last_activity_at', { ascending: false })
+
+    console.log('Leads query error:', error)
+
+    if (error) {
+      setFetchError(`Erro ao carregar pipeline: ${error.message}`)
+      setLoading(false)
+      return
+    }
+
     setLeads((data as Lead[]) ?? [])
+    setFetchError(null)
     setLoading(false)
   }
 
@@ -89,6 +104,17 @@ export function KanbanBoard() {
       <div className="space-y-5">
         <h1 className="text-2xl font-bold text-[#1B2B4B]">Pipeline</h1>
         <div className="p-12 text-center text-gray-400 text-sm">Carregando pipeline...</div>
+      </div>
+    )
+  }
+
+  if (fetchError) {
+    return (
+      <div className="space-y-5">
+        <h1 className="text-2xl font-bold text-[#1B2B4B]">Pipeline</h1>
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <p className="text-red-600 text-sm">{fetchError}</p>
+        </div>
       </div>
     )
   }

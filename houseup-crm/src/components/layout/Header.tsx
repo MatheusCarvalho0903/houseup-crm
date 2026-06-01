@@ -2,11 +2,7 @@
 
 import { Menu, LogOut, User } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
-import { useUser } from '@/hooks/useUser'
-
-interface HeaderProps {
-  onMenuClick: () => void
-}
+import type { UserProfile } from '@/lib/types'
 
 const roleLabel: Record<string, string> = {
   socio: 'Sócio',
@@ -14,12 +10,16 @@ const roleLabel: Record<string, string> = {
   gestor_trafego: 'Gestor de Tráfego',
 }
 
-export function Header({ onMenuClick }: HeaderProps) {
-  const { user, profile } = useUser()
+interface HeaderProps {
+  onMenuClick: () => void
+  profile: UserProfile | null
+  userEmail: string | null
+}
 
+export function Header({ onMenuClick, profile, userEmail }: HeaderProps) {
   const displayName =
     profile?.full_name ??
-    (user?.email ? user.email.split('@')[0] : null) ??
+    (userEmail ? userEmail.split('@')[0] : null) ??
     'Usuário'
 
   const displayRole = profile?.role ? roleLabel[profile.role] : null
