@@ -1,8 +1,7 @@
 'use client'
 
 import { Menu, LogOut, User } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { signOut } from '@/app/actions/auth'
 import { useUser } from '@/hooks/useUser'
 
 interface HeaderProps {
@@ -17,17 +16,7 @@ const roleLabel: Record<string, string> = {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { user, profile } = useUser()
-  const router = useRouter()
 
-  const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
-  }
-
-  // Prefer the profile full_name; fall back to the email local-part (before @);
-  // last resort is a generic label so the UI is never visibly empty.
   const displayName =
     profile?.full_name ??
     (user?.email ? user.email.split('@')[0] : null) ??
@@ -62,13 +51,15 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
         </div>
 
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-500 hover:text-[#1B2B4B] hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <LogOut size={16} />
-          <span className="hidden sm:block">Sair</span>
-        </button>
+        <form action={signOut}>
+          <button
+            type="submit"
+            className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-500 hover:text-[#1B2B4B] hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <LogOut size={16} />
+            <span className="hidden sm:block">Sair</span>
+          </button>
+        </form>
       </div>
     </header>
   )
