@@ -12,8 +12,8 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import { ChevronDown, ChevronRight } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { ChevronDown, ChevronRight, AlertCircle } from 'lucide-react'
+import { createBrowserClient } from '@supabase/ssr'
 import type { Lead, EtapaLead } from '@/lib/types'
 import { KANBAN_ETAPAS, etapaLabels } from '@/lib/lead-utils'
 import { KanbanColumn } from './KanbanColumn'
@@ -28,6 +28,7 @@ export function KanbanBoard({ initialLeads, canEdit }: Props) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [draggingLead, setDraggingLead] = useState<Lead | null>(null)
   const [perdidoOpen, setPerdidoOpen] = useState(false)
+  const [updateError, setUpdateError] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -53,12 +54,20 @@ export function KanbanBoard({ initialLeads, canEdit }: Props) {
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, etapa: newEtapa } : l))
     )
+    setUpdateError(null)
 
-    const supabase = createClient()
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
     const now = new Date().toISOString()
     const { error } = await supabase
       .from('leads')
-      .update({ etapa: newEtapa, updated_at: now, last_activity_at: now })
+      .update({
+        etapa: newEtapa,
+        last_activity_at: now,
+        updated_at: now,
+      })
       .eq('id', leadId)
 
     if (error) {
@@ -66,6 +75,7 @@ export function KanbanBoard({ initialLeads, canEdit }: Props) {
       setLeads((prev) =>
         prev.map((l) => (l.id === leadId ? { ...l, etapa: lead.etapa } : l))
       )
+      setUpdateError(`Erro ao mover lead: ${error.message}`)
     }
   }
 
@@ -84,6 +94,19 @@ export function KanbanBoard({ initialLeads, canEdit }: Props) {
       {!canEdit && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-blue-700 text-sm">
           Você está no modo somente leitura. Apenas sócios e gestores comerciais podem mover leads.
+        </div>
+      )}
+
+      {updateError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-2">
+          <AlertCircle size={16} className="text-red-500 shrink-0" />
+          <p className="text-red-600 text-sm">{updateError}</p>
+          <button
+            onClick={() => setUpdateError(null)}
+            className="ml-auto text-red-400 hover:text-red-600 text-xs underline"
+          >
+            Fechar
+          </button>
         </div>
       )}
 

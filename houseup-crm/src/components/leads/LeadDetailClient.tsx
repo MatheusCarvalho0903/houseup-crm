@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -18,7 +18,6 @@ import {
   Clock,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useUser } from '@/hooks/useUser'
 import type { Lead, Interacao, EtapaLead, TipoInteracao, Origem, TipoInteresse } from '@/lib/types'
 import {
   etapaLabels,
@@ -34,7 +33,6 @@ import {
 } from '@/lib/lead-utils'
 import { cn } from '@/lib/utils'
 
-// ─── Icons per interaction type ───────────────────────────────────────────────
 const interacaoIcons: Record<TipoInteracao, React.ReactNode> = {
   ligacao: <Phone size={14} />,
   whatsapp: <MessageCircle size={14} />,
@@ -43,12 +41,10 @@ const interacaoIcons: Record<TipoInteracao, React.ReactNode> = {
   nota: <FileText size={14} />,
 }
 
-// ─── Shared style helpers ──────────────────────────────────────────────────────
 const inputCls =
   'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B2B4B]/20 focus:border-[#1B2B4B] bg-white disabled:bg-gray-50 disabled:text-gray-500'
 const labelCls = 'block text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide'
 
-// ─── Toggle component ─────────────────────────────────────────────────────────
 function Toggle({
   label,
   value,
@@ -84,7 +80,6 @@ function Toggle({
   )
 }
 
-// ─── Edit form state type ─────────────────────────────────────────────────────
 interface EditForm {
   name: string
   phone: string
@@ -100,14 +95,21 @@ interface EditForm {
   notas: string
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-export function LeadDetailClient({ leadId }: { leadId: string }) {
-  const { user, profile } = useUser()
-  const canEdit = profile?.role === 'socio' || profile?.role === 'gestor_comercial'
+interface Props {
+  initialLead: Lead
+  initialInteractions: Interacao[]
+  canEdit: boolean
+  userId: string
+}
 
-  const [lead, setLead] = useState<Lead | null>(null)
-  const [interactions, setInteractions] = useState<Interacao[]>([])
-  const [loading, setLoading] = useState(true)
+export function LeadDetailClient({
+  initialLead,
+  initialInteractions,
+  canEdit,
+  userId,
+}: Props) {
+  const [lead, setLead] = useState<Lead>(initialLead)
+  const [interactions, setInteractions] = useState<Interacao[]>(initialInteractions)
 
   // Edit state
   const [editing, setEditing] = useState(false)
@@ -128,8 +130,8 @@ export function LeadDetailClient({ leadId }: { leadId: string }) {
   })
 
   // Stage change state
-  const [etapaDraft, setEtapaDraft] = useState<EtapaLead>('novo_lead')
-  const [motivoPerda, setMotivoPerda] = useState('')
+  const [etapaDraft, setEtapaDraft] = useState<EtapaLead>(initialLead.etapa)
+  const [motivoPerda, setMotivoPerda] = useState(initialLead.motivo_perda ?? '')
   const [savingEtapa, setSavingEtapa] = useState(false)
 
   // Interaction form state
@@ -139,34 +141,7 @@ export function LeadDetailClient({ leadId }: { leadId: string }) {
   })
   const [savingInter, setSavingInter] = useState(false)
 
-  useEffect(() => { fetchAll() }, [leadId])
-
-  const fetchAll = async () => {
-    const supabase = createClient()
-    const [leadRes, interRes] = await Promise.all([
-      supabase
-        .from('leads')
-        .select('*, responsavel:users_profiles!responsavel_id(full_name, role)')
-        .eq('id', leadId)
-        .single(),
-      supabase
-        .from('interacoes')
-        .select('*, usuario:users_profiles!user_id(full_name)')
-        .eq('lead_id', leadId)
-        .order('created_at', { ascending: false }),
-    ])
-    if (leadRes.data) {
-      const l = leadRes.data as Lead
-      setLead(l)
-      setEtapaDraft(l.etapa)
-      setMotivoPerda(l.motivo_perda ?? '')
-    }
-    setInteractions((interRes.data as Interacao[]) ?? [])
-    setLoading(false)
-  }
-
   const startEditing = () => {
-    if (!lead) return
     setEditForm({
       name: lead.name,
       phone: lead.phone ?? '',
@@ -185,7 +160,6 @@ export function LeadDetailClient({ leadId }: { leadId: string }) {
   }
 
   const saveEdits = async () => {
-    if (!lead) return
     setSaving(true)
     const supabase = createClient()
     const { data } = await supabase
@@ -215,7 +189,7 @@ export function LeadDetailClient({ leadId }: { leadId: string }) {
   }
 
   const saveEtapa = async () => {
-    if (!lead || etapaDraft === lead.etapa) return
+    if (etapaDraft === lead.etapa) return
     if (etapaDraft === 'perdido' && !motivoPerda.trim()) return
     setSavingEtapa(true)
     const supabase = createClient()
@@ -236,14 +210,19 @@ export function LeadDetailClient({ leadId }: { leadId: string }) {
   }
 
   const addInteraction = async () => {
-    if (!lead || !user || !interForm.descricao.trim()) return
+    if (!interForm.descricao.trim()) return
     setSavingInter(true)
     const supabase = createClient()
     const now = new Date().toISOString()
 
     const { data: interData } = await supabase
       .from('interacoes')
-      .insert({ lead_id: lead.id, user_id: user.id, tipo: interForm.tipo, descricao: interForm.descricao.trim() })
+      .insert({
+        lead_id: lead.id,
+        user_id: userId,
+        tipo: interForm.tipo,
+        descricao: interForm.descricao.trim(),
+      })
       .select('*, usuario:users_profiles!user_id(full_name)')
       .single()
 
@@ -254,34 +233,14 @@ export function LeadDetailClient({ leadId }: { leadId: string }) {
 
     if (interData) {
       setInteractions((prev) => [interData as Interacao, ...prev])
-      setLead((prev) => (prev ? { ...prev, last_activity_at: now } : prev))
+      setLead((prev) => ({ ...prev, last_activity_at: now }))
     }
     setInterForm({ tipo: 'ligacao', descricao: '' })
     setSavingInter(false)
   }
 
-  // ─── Loading / not found states ──────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
-        Carregando...
-      </div>
-    )
-  }
-  if (!lead) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <p className="text-gray-500 text-sm">Lead não encontrado.</p>
-        <Link href="/leads" className="text-[#1B2B4B] text-sm font-medium hover:underline">
-          ← Voltar para Leads
-        </Link>
-      </div>
-    )
-  }
-
   const stale = isStale(lead.last_activity_at)
 
-  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5 max-w-6xl">
       {/* Back + title */}
@@ -395,7 +354,7 @@ export function LeadDetailClient({ leadId }: { leadId: string }) {
                 </div>
               </div>
 
-              {/* Origem + Tipo de interesse */}
+              {/* Origem + Tipo */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Origem</label>
@@ -538,7 +497,7 @@ export function LeadDetailClient({ leadId }: { leadId: string }) {
                 )}
               </div>
 
-              {/* motivo perda (view only) */}
+              {/* Motivo perda (view only) */}
               {lead.etapa === 'perdido' && lead.motivo_perda && !editing && (
                 <div>
                   <label className={labelCls}>Motivo da perda</label>
