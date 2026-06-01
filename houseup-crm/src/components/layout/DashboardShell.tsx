@@ -19,6 +19,7 @@ export function DashboardShell({ children, profile, userEmail }: DashboardShellP
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        isSocio={profile?.role === 'socio'}
       />
       <div className="flex flex-1 flex-col min-w-0">
         <Header
