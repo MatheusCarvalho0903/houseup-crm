@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Plus, Search, Eye, Clock } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { useUser } from '@/hooks/useUser'
 import type { Lead, EtapaLead, Origem, TipoInteresse } from '@/lib/types'
 import {
   etapaLabels,
@@ -19,47 +18,21 @@ import {
 import { LeadFormModal } from './LeadFormModal'
 import { cn } from '@/lib/utils'
 
-export function LeadsClient() {
-  const { profile } = useUser()
-  const canEdit = profile?.role === 'socio' || profile?.role === 'gestor_comercial'
+interface Props {
+  initialLeads: Lead[]
+  canEdit: boolean
+}
 
-  const [leads, setLeads] = useState<Lead[]>([])
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState<string | null>(null)
+export function LeadsClient({ initialLeads, canEdit }: Props) {
+  const router = useRouter()
   const [search, setSearch] = useState('')
   const [filterEtapa, setFilterEtapa] = useState<EtapaLead | ''>('')
   const [filterOrigem, setFilterOrigem] = useState<Origem | ''>('')
   const [filterTipo, setFilterTipo] = useState<TipoInteresse | ''>('')
   const [modalOpen, setModalOpen] = useState(false)
 
-  const fetchLeads = async () => {
-    const supabase = createClient()
-
-    const { data: { session } } = await supabase.auth.getSession()
-    console.log('Session:', session)
-
-    const { data, error } = await supabase
-      .from('leads')
-      .select('*, responsavel:users_profiles!responsavel_id(full_name, role)')
-      .order('last_activity_at', { ascending: false })
-
-    console.log('Leads query error:', error)
-
-    if (error) {
-      setFetchError(`Erro ao carregar leads: ${error.message}`)
-      setLoading(false)
-      return
-    }
-
-    setLeads((data as Lead[]) ?? [])
-    setFetchError(null)
-    setLoading(false)
-  }
-
-  useEffect(() => { fetchLeads() }, [])
-
   const filtered = useMemo(() => {
-    return leads.filter((l) => {
+    return initialLeads.filter((l) => {
       if (filterEtapa && l.etapa !== filterEtapa) return false
       if (filterOrigem && l.origem !== filterOrigem) return false
       if (filterTipo && l.tipo_interesse !== filterTipo) return false
@@ -71,7 +44,7 @@ export function LeadsClient() {
       }
       return true
     })
-  }, [leads, filterEtapa, filterOrigem, filterTipo, search])
+  }, [initialLeads, filterEtapa, filterOrigem, filterTipo, search])
 
   const selectCls =
     'px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B2B4B]/20 focus:border-[#1B2B4B] bg-white'
@@ -143,7 +116,12 @@ export function LeadsClient() {
 
         {(filterEtapa || filterOrigem || filterTipo || search) && (
           <button
-            onClick={() => { setFilterEtapa(''); setFilterOrigem(''); setFilterTipo(''); setSearch('') }}
+            onClick={() => {
+              setFilterEtapa('')
+              setFilterOrigem('')
+              setFilterTipo('')
+              setSearch('')
+            }}
             className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1 hover:bg-gray-100 rounded-lg transition-colors"
           >
             Limpar filtros
@@ -151,18 +129,9 @@ export function LeadsClient() {
         )}
       </div>
 
-      {/* Error state */}
-      {fetchError && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-          <p className="text-red-600 text-sm">{fetchError}</p>
-        </div>
-      )}
-
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-gray-400 text-sm">Carregando leads...</div>
-        ) : filtered.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="p-12 text-center text-gray-400 text-sm">
             {search || filterEtapa || filterOrigem || filterTipo
               ? 'Nenhum lead encontrado com esses filtros.'
@@ -252,11 +221,11 @@ export function LeadsClient() {
         )}
 
         {/* Footer count */}
-        {!loading && filtered.length > 0 && (
+        {filtered.length > 0 && (
           <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
             <p className="text-xs text-gray-400">
               {filtered.length} lead{filtered.length !== 1 ? 's' : ''}
-              {filtered.length !== leads.length && ` de ${leads.length} total`}
+              {filtered.length !== initialLeads.length && ` de ${initialLeads.length} total`}
             </p>
           </div>
         )}
@@ -265,7 +234,10 @@ export function LeadsClient() {
       {modalOpen && (
         <LeadFormModal
           onClose={() => setModalOpen(false)}
-          onCreated={() => { setModalOpen(false); fetchLeads() }}
+          onCreated={() => {
+            setModalOpen(false)
+            router.refresh()
+          }}
         />
       )}
     </div>

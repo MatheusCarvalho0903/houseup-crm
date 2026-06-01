@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   DndContext,
   DragEndEvent,
@@ -14,19 +14,18 @@ import {
 } from '@dnd-kit/core'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useUser } from '@/hooks/useUser'
 import type { Lead, EtapaLead } from '@/lib/types'
 import { KANBAN_ETAPAS, etapaLabels } from '@/lib/lead-utils'
 import { KanbanColumn } from './KanbanColumn'
 import { KanbanCard } from './KanbanCard'
 
-export function KanbanBoard() {
-  const { profile } = useUser()
-  const canEdit = profile?.role === 'socio' || profile?.role === 'gestor_comercial'
+interface Props {
+  initialLeads: Lead[]
+  canEdit: boolean
+}
 
-  const [leads, setLeads] = useState<Lead[]>([])
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState<string | null>(null)
+export function KanbanBoard({ initialLeads, canEdit }: Props) {
+  const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [draggingLead, setDraggingLead] = useState<Lead | null>(null)
   const [perdidoOpen, setPerdidoOpen] = useState(false)
 
@@ -34,32 +33,6 @@ export function KanbanBoard() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
   )
-
-  const fetchLeads = async () => {
-    const supabase = createClient()
-
-    const { data: { session } } = await supabase.auth.getSession()
-    console.log('Session:', session)
-
-    const { data, error } = await supabase
-      .from('leads')
-      .select('*, responsavel:users_profiles!responsavel_id(full_name, role)')
-      .order('last_activity_at', { ascending: false })
-
-    console.log('Leads query error:', error)
-
-    if (error) {
-      setFetchError(`Erro ao carregar pipeline: ${error.message}`)
-      setLoading(false)
-      return
-    }
-
-    setLeads((data as Lead[]) ?? [])
-    setFetchError(null)
-    setLoading(false)
-  }
-
-  useEffect(() => { fetchLeads() }, [])
 
   const handleDragStart = (event: DragStartEvent) => {
     const lead = leads.find((l) => l.id === event.active.id)
@@ -76,7 +49,7 @@ export function KanbanBoard() {
     const lead = leads.find((l) => l.id === leadId)
     if (!lead || lead.etapa === newEtapa) return
 
-    // Optimistic UI update
+    // Optimistic update
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, etapa: newEtapa } : l))
     )
@@ -89,7 +62,7 @@ export function KanbanBoard() {
       .eq('id', leadId)
 
     if (error) {
-      // Revert on error
+      // Rollback on error
       setLeads((prev) =>
         prev.map((l) => (l.id === leadId ? { ...l, etapa: lead.etapa } : l))
       )
@@ -98,26 +71,6 @@ export function KanbanBoard() {
 
   const perdidoLeads = leads.filter((l) => l.etapa === 'perdido')
   const totalLeads = leads.filter((l) => l.etapa !== 'perdido').length
-
-  if (loading) {
-    return (
-      <div className="space-y-5">
-        <h1 className="text-2xl font-bold text-[#1B2B4B]">Pipeline</h1>
-        <div className="p-12 text-center text-gray-400 text-sm">Carregando pipeline...</div>
-      </div>
-    )
-  }
-
-  if (fetchError) {
-    return (
-      <div className="space-y-5">
-        <h1 className="text-2xl font-bold text-[#1B2B4B]">Pipeline</h1>
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-          <p className="text-red-600 text-sm">{fetchError}</p>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-5">
