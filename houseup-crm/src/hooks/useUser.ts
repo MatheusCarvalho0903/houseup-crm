@@ -25,35 +25,35 @@ export function useUser(): UseUserResult {
   useEffect(() => {
     const supabase = createClient()
 
-    const fetchProfile = async (userId: string) => {
-      const { data } = await supabase
+    async function fetchProfile(userId: string) {
+      const { data, error } = await supabase
         .from('users_profiles')
         .select('*')
         .eq('id', userId)
         .single()
-      setProfile(data)
-    }
 
-    const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
-      if (user) await fetchProfile(user.id)
-      setLoading(false)
-    }
-
-    init()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          await fetchProfile(session.user.id)
-        } else {
-          setProfile(null)
-        }
-        setLoading(false)
+      if (!error && data) {
+        setProfile(data as UserProfile)
       }
-    )
+      // If profile doesn't exist yet (no row in users_profiles) we leave it as null.
+      // The header will fall back to the user's email in that case.
+    }
+
+    // onAuthStateChange fires immediately with INITIAL_SESSION, which gives us the
+    // cached session without a network round-trip. This covers both the first render
+    // and future sign-in / sign-out events in the same browser session.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        setUser(session.user)
+        await fetchProfile(session.user.id)
+      } else {
+        setUser(null)
+        setProfile(null)
+      }
+      setLoading(false)
+    })
 
     return () => subscription.unsubscribe()
   }, [])
