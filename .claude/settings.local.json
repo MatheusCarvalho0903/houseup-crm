@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Read(//c/Users/Usuario/OneDrive/�rea de Trabalho/HouseUp CRM/houseup-crm/node_modules/next/dist/**)",
-      "Read(//c/Users/Usuario/OneDrive/�rea de Trabalho/HouseUp CRM/houseup-crm/.next/dev/logs/**)"
+      "Read(//c/Users/Usuario/OneDrive/�rea de Trabalho/HouseUp CRM/houseup-crm/.next/dev/logs/**)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\Usuario\\\\OneDrive\\\\Área de Trabalho\\\\HouseUp CRM\\\\houseup-crm\\\\src\\\\middleware.ts\" -Force)"
     ]
   }
 }
