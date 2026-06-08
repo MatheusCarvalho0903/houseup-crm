@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useUser } from '@/hooks/useUser'
 import type { Origem, TipoInteresse } from '@/lib/types'
 import { origemLabels, tipoInteresseLabels } from '@/lib/lead-utils'
 import { cn } from '@/lib/utils'
@@ -64,7 +63,6 @@ const inputCls =
 const labelCls = 'block text-sm font-medium text-gray-700 mb-1'
 
 export function LeadFormModal({ onClose, onCreated }: Props) {
-  const { user } = useUser()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState<FormState>({
@@ -94,33 +92,59 @@ export function LeadFormModal({ onClose, onCreated }: Props) {
     setLoading(true)
     setError('')
 
-    const supabase = createClient()
-    const now = new Date().toISOString()
-    const { error: dbError } = await supabase.from('leads').insert({
-      name: form.name.trim(),
-      phone: form.phone.trim(),
-      instagram: form.instagram.trim() || null,
-      origem: form.origem || null,
-      campanha: form.origem === 'trafego_pago' ? (form.campanha.trim() || null) : null,
-      tem_terreno: form.tem_terreno,
-      localizacao_terreno: form.tem_terreno ? (form.localizacao_terreno.trim() || null) : null,
-      tem_projeto: form.tem_projeto,
-      precisa_financiamento: form.precisa_financiamento,
-      orcamento_desejado: form.orcamento_desejado ? parseFloat(form.orcamento_desejado) : null,
-      tipo_interesse: form.tipo_interesse || null,
-      notas: form.notas.trim() || null,
-      etapa: 'novo_lead',
-      responsavel_id: user?.id ?? null,
-      last_activity_at: now,
-      updated_at: now,
-    })
+    console.log('1. Iniciando salvamento...')
+    console.log('2. Dados do formulário:', form)
 
-    if (dbError) {
-      setError('Erro ao criar lead. Verifique os dados e tente novamente.')
+    try {
+      console.log('3. Criando cliente Supabase...')
+      const supabase = createClient()
+      console.log('4. Cliente criado, executando insert...')
+
+      const { data: { user } } = await supabase.auth.getUser()
+      console.log('Usuario atual:', user?.id)
+
+      const insertData = {
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        instagram: form.instagram.trim() || null,
+        origem: form.origem || null,
+        campanha: form.origem === 'trafego_pago' ? (form.campanha.trim() || null) : null,
+        tem_terreno: form.tem_terreno ?? false,
+        localizacao_terreno: form.tem_terreno ? (form.localizacao_terreno.trim() || null) : null,
+        tem_projeto: form.tem_projeto ?? false,
+        precisa_financiamento: form.precisa_financiamento ?? false,
+        orcamento_desejado: form.orcamento_desejado ? parseFloat(form.orcamento_desejado) : null,
+        tipo_interesse: form.tipo_interesse || null,
+        notas: form.notas.trim() || null,
+        etapa: 'novo_lead',
+        responsavel_id: user?.id || null,
+        last_activity_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      console.log('Dados para insert:', insertData)
+
+      const { data, error: dbError } = await supabase
+        .from('leads')
+        .insert(insertData)
+        .select()
+        .single()
+
+      console.log('Resultado insert:', { data, error: dbError })
+
+      if (dbError) {
+        console.error('ERRO ao salvar:', dbError)
+        setError('Erro ao criar lead. Verifique os dados e tente novamente.')
+        return
+      }
+
+      onCreated()
+    } catch (err) {
+      console.error('Catch error:', err)
+      setError('Erro inesperado ao criar lead.')
+    } finally {
       setLoading(false)
-      return
     }
-    onCreated()
   }
 
   return (

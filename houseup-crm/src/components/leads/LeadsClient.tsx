@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, Eye, Clock } from 'lucide-react'
@@ -25,11 +25,16 @@ interface Props {
 
 export function LeadsClient({ initialLeads, canEdit }: Props) {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
   const [search, setSearch] = useState('')
   const [filterEtapa, setFilterEtapa] = useState<EtapaLead | ''>('')
   const [filterOrigem, setFilterOrigem] = useState<Origem | ''>('')
   const [filterTipo, setFilterTipo] = useState<TipoInteresse | ''>('')
   const [modalOpen, setModalOpen] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const filtered = useMemo(() => {
     return initialLeads.filter((l) => {
@@ -188,20 +193,24 @@ export function LeadsClient({ initialLeads, canEdit }: Props) {
                         {lead.responsavel?.full_name ?? '—'}
                       </td>
                       <td className="px-5 py-3.5">
-                        <span
-                          className={cn(
-                            'flex items-center gap-1.5 text-xs font-medium',
-                            stale ? 'text-red-500' : 'text-gray-500'
-                          )}
-                        >
-                          {stale && <Clock size={12} />}
-                          {formatDateShort(lead.last_activity_at)}
-                          {stale && (
-                            <span className="text-red-400">
-                              ({daysSince(lead.last_activity_at)}d)
-                            </span>
-                          )}
-                        </span>
+                        {mounted ? (
+                          <span
+                            className={cn(
+                              'flex items-center gap-1.5 text-xs font-medium',
+                              stale ? 'text-red-500' : 'text-gray-500'
+                            )}
+                          >
+                            {stale && <Clock size={12} />}
+                            {formatDateShort(lead.last_activity_at)}
+                            {stale && (
+                              <span className="text-red-400">
+                                ({daysSince(lead.last_activity_at)}d)
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-5 py-3.5">
                         <Link
